@@ -16,6 +16,7 @@ This server acts as a bridge between AI agents and your Marketo instance. Instea
 - **Smart Campaigns & Lists** — trigger campaigns, query smart lists
 - **Usage Stats** — monitor API quota consumption
 - **OAuth token caching** with automatic refresh
+- **API key authentication** — protect your server with a Bearer token
 - **Dual transport** — Streamable HTTP (port 3201) + HTTPS (port 3444)
 - **SSE fallback** for older MCP clients
 
@@ -44,6 +45,7 @@ MARKETO_CLIENT_ID=your-client-id
 MARKETO_CLIENT_SECRET=your-client-secret
 MARKETO_MCP_PORT=3201
 MARKETO_MCP_HTTPS_PORT=3444
+MCP_API_KEY=your-api-key-here
 ```
 
 To find your Marketo API credentials:
@@ -52,7 +54,24 @@ To find your Marketo API credentials:
 3. Click "View Details" to get the Client ID and Client Secret
 4. Your base URL is your Marketo instance URL (e.g., `https://123-ABC-456.mktorest.com`)
 
-### 3. (Optional) HTTPS setup
+### 3. Generate an API key
+
+The `MCP_API_KEY` protects your server from unauthorized access. Generate a random key:
+
+```bash
+openssl rand -hex 32
+```
+
+Add the result to your `.env` as `MCP_API_KEY`. If left empty, authentication is disabled (not recommended for production).
+
+All requests (except `/health` and `OPTIONS` preflight) must include:
+```
+Authorization: Bearer <your-api-key>
+```
+
+Unauthenticated requests receive a `401 Unauthorized` response.
+
+### 4. (Optional) HTTPS setup
 
 Place your SSL certificates at:
 - `ssl/server.crt`
@@ -60,7 +79,7 @@ Place your SSL certificates at:
 
 If not present, HTTPS will be skipped and only HTTP will run.
 
-### 4. Run
+### 5. Run
 
 ```bash
 # With tsx (recommended for development)
@@ -81,7 +100,10 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "marketo": {
-      "url": "http://localhost:3201/mcp"
+      "url": "http://localhost:3201/mcp",
+      "headers": {
+        "Authorization": "Bearer your-api-key-here"
+      }
     }
   }
 }
@@ -97,6 +119,8 @@ or
 ```
 https://your-server:3444/mcp
 ```
+
+Include the `Authorization: Bearer <key>` header in all requests.
 
 ### SSE Transport (legacy)
 

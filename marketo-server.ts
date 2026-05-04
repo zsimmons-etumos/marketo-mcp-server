@@ -24,6 +24,7 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 const PORT = Number(process.env.MARKETO_MCP_PORT) || 3201;
+const MCP_API_KEY = process.env.MCP_API_KEY ?? "";
 const HTTPS_PORT = Number(process.env.MARKETO_MCP_HTTPS_PORT) || 3444;
 
 const MARKETO_BASE_URL = process.env.MARKETO_BASE_URL ?? ""; // e.g. https://xxx-xxx-xxx.mktorest.com
@@ -2669,7 +2670,7 @@ async function main() {
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id, Accept, mcp-protocol-version");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id, Accept, mcp-protocol-version, Authorization");
     res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
 
     if (req.method === "OPTIONS") {
@@ -2682,6 +2683,19 @@ async function main() {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ok", server: "clawbridge-marketo-mcp" }));
       return;
+    }
+
+    // ---------------------------------------------------------------
+    // API key authentication — require Bearer token on all MCP routes
+    // ---------------------------------------------------------------
+    if (MCP_API_KEY) {
+      const auth = req.headers["authorization"];
+      if (!auth?.startsWith("Bearer ") || auth.slice(7) !== MCP_API_KEY) {
+        console.warn(`[MCP] Rejected unauthenticated request: ${req.method} ${url.pathname}`);
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized — provide Authorization: Bearer <MCP_API_KEY>" }));
+        return;
+      }
     }
 
     const isMcpPath = url.pathname === "/mcp" || url.pathname === "/mcp/" || url.pathname === "/";
